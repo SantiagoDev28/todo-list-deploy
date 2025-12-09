@@ -8,13 +8,33 @@ import taskRoutes from "./routes/taskRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// CORS Configuration
+const allowedOrigins = [
+  "http://localhost:5173", // Desarrollo local Vite
+  "http://localhost:3000",  // Desarrollo local backend
+  "http://localhost",       // Desarrollo local
+  "http://localhost:80",    // Desarrollo local
+  process.env.FRONTEND_URL  // Variable de entorno para producción
+].filter(Boolean); // Filtra valores undefined
+
+console.log("🔐 CORS Origins permitidos:", allowedOrigins);
+
 app.use(cors({
-  origin: [
-    "http://localhost:5173", // Para desarrollo local
-    "https://todo-list-deploy-production.up.railway.app/" // TU DOMINIO DE VERCEL
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  origin: function (origin, callback) {
+    // Permitir sin origin (mobile apps, Postman, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS rechazado para origin: ${origin}`);
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  maxAge: 86400 // 24 horas
 }));
 
 app.use(express.json());
