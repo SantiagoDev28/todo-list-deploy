@@ -8,7 +8,15 @@ import taskRoutes from "./routes/taskRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173", // Para desarrollo local
+    "https://todo-list-deploy-production.up.railway.app/" // TU DOMINIO DE VERCEL
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Ruta de prueba
