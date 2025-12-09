@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # Base de datos MySQL
+  db:
+    image: mysql:8.0-alpine
+    container_name: todo_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_123
+      MYSQL_DATABASE: todo_app
+      MYSQL_USER: todo_user
+      MYSQL_PASSWORD: todo_password_123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./Backend/Database/to_do_list_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - todo_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Backend Node.js
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: todo_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: todo_user
+      DB_PASSWORD: todo_password_123
+      DB_NAME: todo_app
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+    ports:
+      - "3000:3000"
+    networks:
+      - todo_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend React/Vite
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000/api
+    container_name: todo_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - todo_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  todo_network:
+    driver: bridge
